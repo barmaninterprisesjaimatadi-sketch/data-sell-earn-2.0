@@ -1,40 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper to validate document IDs for single-doc targets
-    function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 100 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    // Connectivity test path
-    match /test/{testId} {
+    match /{document=**} {
       allow read, write: if true;
-    }
-
-    // Users Collection
-    match /users/{userId} {
-      allow get: if isValidId(userId);
-      allow list: if true;
-      allow create: if isValidId(userId);
-      allow update: if isValidId(userId);
-      allow delete: if false;
-    }
-
-    // Transactions Collection
-    match /transactions/{transactionId} {
-      allow get: if isValidId(transactionId);
-      allow list: if true;
-      allow create: if isValidId(transactionId);
-      allow update: if isValidId(transactionId);
-      allow delete: if false;
-    }
-
-    // Settings Collection
-    match /settings/{settingId} {
-      allow get: if isValidId(settingId);
-      allow list: if true;
-      allow write: if isValidId(settingId);
     }
   }
 }
