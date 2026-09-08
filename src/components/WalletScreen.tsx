@@ -41,9 +41,10 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({
   const [showKycModal, setShowKycModal] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
 
-  // Only display withdrawals that are pending/applied as explicitly instructed:
-  // "सिर्फ और सिर्फ जो विड्रॉ लगाएंगे, वह पेमेंट पेंडिंग में रहना चाहिए जो कि वहां पर शो करना चाहिए।"
-  const withdrawTransactions = transactions.filter((tx) => tx.type === 'withdraw');
+  // Only display withdrawals that are pending/applied for the CURRENT user
+  const withdrawTransactions = transactions.filter(
+    (tx) => tx.type === 'withdraw' && tx.userMobile === user.mobile
+  );
 
   const handleKycComplete = (details: {
     aadhaar: string;

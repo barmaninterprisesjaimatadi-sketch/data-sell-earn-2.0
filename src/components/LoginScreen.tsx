@@ -1,21 +1,26 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Phone, Mail, ArrowRight, Loader2 } from 'lucide-react';
-import { UserProfile } from '../types';
+import { UserProfile, AdminSettings } from '../types';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: UserProfile) => void;
   defaultEmail?: string;
+  adminSettings: AdminSettings;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLoginSuccess,
   defaultEmail = '',
+  adminSettings,
 }) => {
   const [mobile, setMobile] = useState('');
   const [gmail, setGmail] = useState(defaultEmail);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const logo = adminSettings.appLogoUrl || '/logo.jpg';
+  const appName = adminSettings.appName || 'Data Earn';
 
   const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value.replace(/\D/g, '').slice(0, 10);
@@ -69,14 +74,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           <div className="relative mb-3">
             <div className="w-20 h-20 rounded-full p-1 bg-gradient-to-tr from-emerald-500 via-teal-400 to-amber-400 shadow-xl shadow-emerald-500/20">
               <img
-                src="/logo.jpg"
-                alt="Data Earn Logo"
+                src={logo}
+                alt={`${appName} Logo`}
                 referrerPolicy="no-referrer"
-                className="w-full h-full rounded-full object-cover"
+                className="w-full h-full rounded-full object-cover bg-white"
               />
             </div>
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Data Earn</h1>
+          <h1 className="text-2xl font-black text-white tracking-tight">{appName}</h1>
           <p className="text-xs text-slate-400 mt-1">
             Data Mining, Coins & Rupee Earnings
           </p>

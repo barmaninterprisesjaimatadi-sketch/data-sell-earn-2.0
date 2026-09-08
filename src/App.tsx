@@ -24,6 +24,7 @@ import {
   updateTransactionStatusInFirestore,
   saveAdminSettingsToFirestore,
   subscribeToAdminSettings,
+  fetchUserFromFirestore,
 } from './lib/firebase';
 
 export default function App() {
@@ -133,14 +134,20 @@ export default function App() {
     return combined;
   });
 
-  // Admin Settings (Custom QR image and UPI ID)
+  // Admin Settings (Custom QR image, UPI ID, app name, app logo)
   const [adminSettings, setAdminSettings] = useState<AdminSettings>(() => {
     return {
       customQrUrl: localStorage.getItem('tap_to_earn_custom_qr') || null,
       customUpiId:
         localStorage.getItem('tap_to_earn_custom_upi') || 'taptoearn.kyc@upi',
+      appName: localStorage.getItem('tap_to_earn_app_name') || 'Data Earn',
+      appLogoUrl: localStorage.getItem('tap_to_earn_app_logo') || '/logo.jpg',
     };
   });
+
+  useEffect(() => {
+    document.title = adminSettings.appName || 'Data Earn';
+  }, [adminSettings.appName]);
 
   // Admin View State
   const [showAdminPasswordModal, setShowAdminPasswordModal] = useState(false);
@@ -276,6 +283,14 @@ export default function App() {
           utr: remoteUser.utr || prev.utr,
         };
       });
+
+      // Sync wallet & mining states across devices
+      if (remoteUser.walletBalance !== undefined) setWalletBalance(remoteUser.walletBalance);
+      if (remoteUser.totalEarned !== undefined) setTotalEarned(remoteUser.totalEarned);
+      if (remoteUser.totalWithdrawn !== undefined) setTotalWithdrawn(remoteUser.totalWithdrawn);
+      if (remoteUser.unclaimedRupees !== undefined) setUnclaimedRupees(remoteUser.unclaimedRupees);
+      if (remoteUser.unclaimedCoins !== undefined) setUnclaimedCoins(remoteUser.unclaimedCoins);
+      if (remoteUser.isMiningActive !== undefined) setIsMiningActive(remoteUser.isMiningActive);
     });
 
     return () => {
@@ -382,54 +397,78 @@ export default function App() {
   };
 
   // Login handler
-  const handleLoginSuccess = (user: UserProfile) => {
-    // Read the latest all_users from localStorage or state
-    let allUsers = users;
-    const saved = localStorage.getItem('tap_to_earn_all_users');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          allUsers = parsed;
-        }
-      } catch {}
+  const handleLoginSuccess = async (user: UserProfile) => {
+    let resolvedUser = user;
+    
+    // Fetch real data from firestore to ensure same state across devices
+    const remoteUser = await fetchUserFromFirestore(user.mobile);
+    if (remoteUser) {
+      if (remoteUser.walletBalance !== undefined) setWalletBalance(remoteUser.walletBalance);
+      if (remoteUser.totalEarned !== undefined) setTotalEarned(remoteUser.totalEarned);
+      if (remoteUser.totalWithdrawn !== undefined) setTotalWithdrawn(remoteUser.totalWithdrawn);
+      if (remoteUser.unclaimedRupees !== undefined) setUnclaimedRupees(remoteUser.unclaimedRupees);
+      if (remoteUser.unclaimedCoins !== undefined) setUnclaimedCoins(remoteUser.unclaimedCoins);
+      if (remoteUser.isMiningActive !== undefined) setIsMiningActive(remoteUser.isMiningActive);
+      
+      resolvedUser = {
+        ...user,
+        id: remoteUser.id || user.id || `UID-${user.mobile}`,
+        kycStatus: remoteUser.kycStatus || user.kycStatus || 'processing',
+        aadhaar: remoteUser.aadhaar || user.aadhaar,
+        photoUrl: remoteUser.photoUrl || user.photoUrl,
+        utr: remoteUser.utr || user.utr,
+        joinedAt: remoteUser.joinedAt || user.joinedAt || 'Today',
+      };
+    } else {
+      // Read the latest all_users from localStorage or state as fallback
+      let allUsers = users;
+      const saved = localStorage.getItem('tap_to_earn_all_users');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            allUsers = parsed;
+          }
+        } catch {}
+      }
+
+      const existing = allUsers.find((u) => u.mobile === user.mobile);
+      const resolvedKycStatus =
+        existing?.kycStatus || user.kycStatus || 'processing';
+      const resolvedId = existing?.id || user.id || `UID-${user.mobile}`;
+
+      resolvedUser = {
+        ...user,
+        id: resolvedId,
+        kycStatus: resolvedKycStatus,
+        aadhaar: existing?.aadhaar || user.aadhaar,
+        photoUrl: existing?.photoUrl || user.photoUrl,
+        utr: existing?.utr || user.utr,
+        joinedAt: existing?.joinedAt || user.joinedAt || 'Today',
+      };
     }
 
-    const existing = allUsers.find((u) => u.mobile === user.mobile);
-    const resolvedKycStatus =
-      existing?.kycStatus || user.kycStatus || 'processing';
-    const resolvedId = existing?.id || user.id || `UID-${user.mobile}`;
-
-    const fullUser: UserProfile = {
-      ...user,
-      id: resolvedId,
-      kycStatus: resolvedKycStatus,
-      aadhaar: existing?.aadhaar || user.aadhaar,
-      photoUrl: existing?.photoUrl || user.photoUrl,
-      utr: existing?.utr || user.utr,
-      joinedAt: existing?.joinedAt || user.joinedAt || 'Today',
-    };
-
-    setCurrentUser(fullUser);
-    localStorage.setItem('tap_to_earn_user', JSON.stringify(fullUser));
+    setCurrentUser(resolvedUser);
+    localStorage.setItem('tap_to_earn_user', JSON.stringify(resolvedUser));
 
     // Save to Firestore
-    syncUserToFirestore(fullUser, {
-      walletBalance,
-      totalEarned,
-      unclaimedRupees,
-      unclaimedCoins,
-      isMiningActive,
+    syncUserToFirestore(resolvedUser, {
+      walletBalance: remoteUser?.walletBalance ?? walletBalance,
+      totalEarned: remoteUser?.totalEarned ?? totalEarned,
+      totalWithdrawn: remoteUser?.totalWithdrawn ?? totalWithdrawn,
+      unclaimedRupees: remoteUser?.unclaimedRupees ?? unclaimedRupees,
+      unclaimedCoins: remoteUser?.unclaimedCoins ?? unclaimedCoins,
+      isMiningActive: remoteUser?.isMiningActive ?? isMiningActive,
     }).catch(console.error);
 
     setUsers((prev) => {
-      const idx = prev.findIndex((u) => u.mobile === fullUser.mobile);
+      const idx = prev.findIndex((u) => u.mobile === resolvedUser.mobile);
       let updated: UserProfile[];
       if (idx !== -1) {
         updated = [...prev];
-        updated[idx] = fullUser;
+        updated[idx] = resolvedUser;
       } else {
-        updated = [fullUser, ...prev];
+        updated = [resolvedUser, ...prev];
       }
       localStorage.setItem('tap_to_earn_all_users', JSON.stringify(updated));
       return updated;
@@ -537,6 +576,36 @@ export default function App() {
     });
   };
 
+  // Admin: Explicitly set user wallet balance
+  const handleUpdateUserBalance = (mobile: string, newBalance: number) => {
+    const cleanMobile = mobile.replace(/\D/g, '').slice(-10);
+    if (!cleanMobile) return;
+
+    setUsers((prev) => {
+      const updated = prev.map((u) => {
+        if (u.mobile === cleanMobile || u.mobile === mobile) {
+          return { ...u, walletBalance: newBalance };
+        }
+        return u;
+      });
+      localStorage.setItem('tap_to_earn_all_users', JSON.stringify(updated));
+      return updated;
+    });
+
+    // Update in Firestore
+    const userToUpdate = users.find(
+      (u) => u.mobile === cleanMobile || u.mobile === mobile
+    );
+    if (userToUpdate) {
+      syncUserToFirestore(userToUpdate, { walletBalance: newBalance }).catch(console.error);
+    }
+
+    // Update locally if it's the current user
+    if (currentUser?.mobile === cleanMobile || currentUser?.mobile === mobile) {
+      setWalletBalance(newBalance);
+    }
+  };
+
   // Admin: Toggle withdrawal transaction status (Completed <-> Pending)
   const handleToggleWithdrawalStatus = (txId: string) => {
     let nextStatus: 'completed' | 'processing' | 'pending' = 'completed';
@@ -564,6 +633,12 @@ export default function App() {
     if (newSettings.customUpiId) {
       localStorage.setItem('tap_to_earn_custom_upi', newSettings.customUpiId);
     }
+    if (newSettings.appName) {
+      localStorage.setItem('tap_to_earn_app_name', newSettings.appName);
+    }
+    if (newSettings.appLogoUrl) {
+      localStorage.setItem('tap_to_earn_app_logo', newSettings.appLogoUrl);
+    }
   };
 
   // If user is not logged in, display the Login Screen
@@ -572,6 +647,7 @@ export default function App() {
       <LoginScreen
         onLoginSuccess={handleLoginSuccess}
         defaultEmail=""
+        adminSettings={adminSettings}
       />
     );
   }
@@ -584,6 +660,7 @@ export default function App() {
         walletBalance={walletBalance}
         onWalletClick={() => setActiveTab('wallet')}
         activeTab={activeTab}
+        adminSettings={adminSettings}
       />
 
       {/* Main Content Area */}
@@ -653,6 +730,7 @@ export default function App() {
           onToggleWithdrawalStatus={handleToggleWithdrawalStatus}
           adminSettings={adminSettings}
           onUpdateAdminSettings={handleUpdateAdminSettings}
+          onUpdateUserBalance={handleUpdateUserBalance}
         />
       )}
     </div>

@@ -1,12 +1,13 @@
 import React from 'react';
 import { Sparkles, Wallet, ShieldCheck } from 'lucide-react';
-import { UserProfile, TabType } from '../types';
+import { UserProfile, TabType, AdminSettings } from '../types';
 
 interface HeaderProps {
   user: UserProfile;
   walletBalance: number;
   onWalletClick: () => void;
   activeTab: TabType;
+  adminSettings: AdminSettings;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -14,7 +15,11 @@ export const Header: React.FC<HeaderProps> = ({
   walletBalance,
   onWalletClick,
   activeTab,
+  adminSettings,
 }) => {
+  const logo = adminSettings.appLogoUrl || '/logo.jpg';
+  const appName = adminSettings.appName || 'Data Earn';
+
   return (
     <header className="sticky top-0 z-30 bg-[#0b0f19]/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3">
       <div className="max-w-md mx-auto flex items-center justify-between">
@@ -22,8 +27,8 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-2.5">
           <div className="relative">
             <img
-              src="/logo.jpg"
-              alt="Data Earn Logo"
+              src={logo}
+              alt={`${appName} Logo`}
               referrerPolicy="no-referrer"
               className="w-9 h-9 rounded-full object-cover border border-emerald-500/50 shadow-md shadow-emerald-500/20"
             />
@@ -31,7 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div>
             <h1 className="text-sm font-black text-white tracking-tight flex items-center gap-1.5">
-              <span>Data Earn</span>
+              <span>{appName}</span>
             </h1>
             <p className="text-[11px] text-slate-400 truncate max-w-[140px] sm:max-w-[180px]">
               {user.gmail}

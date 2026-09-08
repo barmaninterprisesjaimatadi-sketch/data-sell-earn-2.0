@@ -148,6 +148,8 @@ export function subscribeToAllUsers(
           aadhaar: d.aadhaar,
           photoUrl: d.photoUrl,
           utr: d.utr,
+          walletBalance: d.walletBalance,
+          totalEarned: d.totalEarned,
         });
       });
       if (list.length > 0) {
@@ -225,6 +227,8 @@ export async function saveAdminSettingsToFirestore(settings: AdminSettings): Pro
   await setDoc(settingsRef, {
     customQrUrl: settings.customQrUrl || null,
     customUpiId: settings.customUpiId || 'paytmqr28100505010115i273062319@paytm',
+    appName: settings.appName || null,
+    appLogoUrl: settings.appLogoUrl || null,
     updatedAt: new Date().toISOString(),
   }, { merge: true });
 }
@@ -241,6 +245,8 @@ export function subscribeToAdminSettings(
         onUpdate({
           customQrUrl: data.customQrUrl ?? null,
           customUpiId: data.customUpiId || 'paytmqr28100505010115i273062319@paytm',
+          appName: data.appName ?? null,
+          appLogoUrl: data.appLogoUrl ?? null,
         });
       }
     },

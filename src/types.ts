@@ -7,6 +7,8 @@ export interface UserProfile {
   aadhaar?: string;
   photoUrl?: string;
   utr?: string;
+  walletBalance?: number;
+  totalEarned?: number;
 }
 
 export type TabType = 'home' | 'wallet' | 'profile';
@@ -35,4 +37,6 @@ export interface Transaction {
 export interface AdminSettings {
   customQrUrl: string | null;
   customUpiId: string;
+  appName?: string;
+  appLogoUrl?: string;
 }

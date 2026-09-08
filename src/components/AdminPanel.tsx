@@ -27,9 +27,10 @@ interface AdminPanelProps {
   onToggleWithdrawalStatus: (txId: string) => void;
   adminSettings: AdminSettings;
   onUpdateAdminSettings: (newSettings: AdminSettings) => void;
+  onUpdateUserBalance: (mobile: string, newBalance: number) => void;
 }
 
-type AdminTab = 'users' | 'qr' | 'withdrawals';
+type AdminTab = 'users' | 'qr' | 'withdrawals' | 'branding';
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
   onClose,
@@ -39,6 +40,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onToggleWithdrawalStatus,
   adminSettings,
   onUpdateAdminSettings,
+  onUpdateUserBalance,
 }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
 
@@ -52,6 +54,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [upiIdInput, setUpiIdInput] = useState(
     adminSettings.customUpiId || 'taptoearn.kyc@upi'
   );
+
+  // Tab 4: Branding state
+  const [appLogoPreview, setAppLogoPreview] = useState<string | null>(
+    adminSettings.appLogoUrl || null
+  );
+  const [appNameInput, setAppNameInput] = useState(
+    adminSettings.appName || 'Data Earn'
+  );
+  const brandFileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [qrSavedNotice, setQrSavedNotice] = useState(false);
   const [kycToast, setKycToast] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -76,8 +88,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleSaveQrSettings = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateAdminSettings({
+      ...adminSettings,
       customQrUrl: qrImagePreview,
       customUpiId: upiIdInput.trim(),
+    });
+    setQrSavedNotice(true);
+    setTimeout(() => setQrSavedNotice(false), 3000);
+  };
+
+  // Handle Branding Logo selection
+  const handleBrandImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAppLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Save Branding Settings
+  const handleSaveBrandingSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateAdminSettings({
+      ...adminSettings,
+      appName: appNameInput.trim() || 'Data Earn',
+      appLogoUrl: appLogoPreview,
     });
     setQrSavedNotice(true);
     setTimeout(() => setQrSavedNotice(false), 3000);
@@ -145,17 +182,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <ArrowLeft className="w-5 h-5" />
           </button>
           <img
-            src="/logo.jpg"
-            alt="Data Earn Logo"
+            src={adminSettings.appLogoUrl || "/logo.jpg"}
+            alt={`${adminSettings.appName || 'Data Earn'} Logo`}
             referrerPolicy="no-referrer"
-            className="w-8 h-8 rounded-full object-cover border border-emerald-500/40"
+            className="w-8 h-8 rounded-full object-cover border border-emerald-500/40 bg-white"
           />
           <div>
             <h1 className="text-base font-bold text-white flex items-center gap-2">
-              <span>Data Earn Admin</span>
+              <span>{adminSettings.appName || 'Data Earn'} Admin</span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Firestore Connected
+                Live Sync
               </span>
             </h1>
             <p className="text-[11px] text-slate-400">
@@ -346,6 +383,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           {u.utr && <div>UTR: <strong className="text-slate-200">{u.utr}</strong></div>}
                         </div>
                       )}
+
+                      {/* Wallet Balance Edit */}
+                      <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-slate-300">
+                          <CreditCard className="w-4 h-4 text-emerald-400" />
+                          <span className="text-sm font-bold">
+                            Balance: ₹{(u.walletBalance || 0).toFixed(2)}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newBal = window.prompt(
+                              `Enter new wallet balance for +91 ${u.mobile}:`,
+                              (u.walletBalance || 0).toString()
+                            );
+                            if (newBal !== null && !isNaN(Number(newBal))) {
+                              onUpdateUserBalance(u.mobile, Number(newBal));
+                              setKycToast(`Balance for +91 ${u.mobile} updated to ₹${Number(newBal)}`);
+                              setTimeout(() => setKycToast(null), 3000);
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-slate-300 transition-colors cursor-pointer"
+                        >
+                          Edit Balance
+                        </button>
+                      </div>
 
                       {/* Explicit Action Button to Toggle KYC */}
                       <button
@@ -613,11 +677,116 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           </div>
         )}
+        {/* ========================================================= */}
+        {/* TAB 4: App Branding (Logo & Name)                          */}
+        {/* ========================================================= */}
+        {activeTab === 'branding' && (
+          <form onSubmit={handleSaveBrandingSettings} className="space-y-5">
+            {/* Notification */}
+            <AnimatePresence>
+              {qrSavedNotice && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs flex items-center gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>App name and logo updated successfully!</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Logo Image Upload */}
+            <div className="bg-[#121a2e] border border-slate-800 rounded-3xl p-5 flex flex-col items-center justify-center space-y-3 shadow-xl">
+              <label className="text-xs font-bold text-slate-300">
+                Upload App Logo
+              </label>
+
+              {/* Hidden file input */}
+              <input
+                ref={brandFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleBrandImageSelect}
+                className="hidden"
+              />
+
+              {/* Square Box Container */}
+              <div
+                onClick={() => brandFileInputRef.current?.click()}
+                className="w-32 h-32 aspect-square rounded-full border-2 border-dashed border-emerald-500/50 bg-[#0a0f1d] hover:bg-slate-900/80 transition-all cursor-pointer flex flex-col items-center justify-center p-2 text-center relative overflow-hidden shadow-inner group"
+              >
+                {appLogoPreview ? (
+                  <div className="relative w-full h-full flex items-center justify-center rounded-full overflow-hidden bg-white">
+                    <img
+                      src={appLogoPreview}
+                      alt="Uploaded App Logo"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity gap-1">
+                      <Upload className="w-5 h-5 text-emerald-400" />
+                      <span className="text-[9px] font-semibold">Change Logo</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-1 text-slate-400 group-hover:text-emerald-400">
+                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
+                      <Upload className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-200">
+                        Upload Logo
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {appLogoPreview && (
+                <button
+                  type="button"
+                  onClick={() => setAppLogoPreview(null)}
+                  className="text-[11px] text-rose-400 hover:underline cursor-pointer"
+                >
+                  Remove custom logo (revert to default)
+                </button>
+              )}
+            </div>
+
+            {/* Input field for App Name */}
+            <div className="bg-[#121a2e] border border-slate-800 rounded-2xl p-4 space-y-2 shadow-md">
+              <label className="text-xs font-semibold text-slate-300">
+                Enter App Name
+              </label>
+              <input
+                type="text"
+                required
+                value={appNameInput}
+                onChange={(e) => setAppNameInput(e.target.value)}
+                placeholder="e.g. Data Earn"
+                className="w-full bg-[#0a0f1d] border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-bold"
+              />
+              <p className="text-[11px] text-slate-400">
+                This name will be updated live across all user devices.
+              </p>
+            </div>
+
+            {/* Confirm Button */}
+            <button
+              type="submit"
+              className="w-full py-3.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Check className="w-4 h-4" />
+              <span>Confirm & Save Theme</span>
+            </button>
+          </form>
+        )}
       </div>
 
-      {/* Admin Bottom Navigation (3 Buttons) as explicitly requested */}
+      {/* Admin Bottom Navigation (4 Buttons) */}
       <div className="fixed bottom-0 left-0 right-0 bg-[#121a2e] border-t border-slate-800 px-3 py-2 z-50">
-        <div className="max-w-lg mx-auto grid grid-cols-3 gap-2">
+        <div className="max-w-lg mx-auto grid grid-cols-4 gap-2">
           {/* Button 1: KYC Complete */}
           <button
             type="button"
@@ -629,7 +798,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             }`}
           >
             <ShieldCheck className="w-4 h-4" />
-            <span className="text-[11px]">KYC Complete</span>
+            <span className="text-[10px]">Users</span>
           </button>
 
           {/* Button 2: QR & UPI Settings */}
@@ -643,7 +812,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             }`}
           >
             <QrCode className="w-4 h-4" />
-            <span className="text-[11px]">QR & UPI</span>
+            <span className="text-[10px]">QR & UPI</span>
           </button>
 
           {/* Button 3: Withdrawals */}
@@ -657,7 +826,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             }`}
           >
             <ArrowDownToLine className="w-4 h-4" />
-            <span className="text-[11px]">Withdrawals</span>
+            <span className="text-[10px]">Withdrawals</span>
+          </button>
+
+          {/* Button 4: App Theme/Branding */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('branding')}
+            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+              activeTab === 'branding'
+                ? 'bg-emerald-500 text-slate-950 font-bold shadow-lg shadow-emerald-500/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span className="text-[10px]">App Theme</span>
           </button>
         </div>
       </div>
