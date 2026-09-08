@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile, mining status, wallet balance, and KYC data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique user identifier" },
+        "mobile": { "type": "string", "description": "10-digit mobile number" },
+        "gmail": { "type": "string", "description": "User Gmail address" },
+        "joinedAt": { "type": "string", "description": "Account creation date" },
+        "kycStatus": { "type": "string", "enum": ["pending", "processing", "completed"], "description": "KYC approval status" },
+        "walletBalance": { "type": "number", "description": "Current wallet balance in rupees" },
+        "totalEarned": { "type": "number", "description": "Lifetime earned rupees" },
+        "unclaimedRupees": { "type": "number", "description": "Mined unclaimed rupees" },
+        "unclaimedCoins": { "type": "number", "description": "Mined unclaimed coins" },
+        "isMiningActive": { "type": "boolean", "description": "Mining active state" },
+        "aadhaar": { "type": "string", "description": "Aadhaar number if submitted" },
+        "photoUrl": { "type": "string", "description": "Selfie or document URL if submitted" },
+        "utr": { "type": "string", "description": "Fee payment UTR if submitted" }
+      },
+      "required": ["mobile", "gmail", "joinedAt"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial records for mining claims and withdrawal requests",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Transaction identifier" },
+        "userMobile": { "type": "string", "description": "Mobile number of user" },
+        "type": { "type": "string", "enum": ["claim", "withdraw"], "description": "Transaction type" },
+        "amount": { "type": "number", "description": "Rupee amount" },
+        "coins": { "type": "number", "description": "Coins claimed if applicable" },
+        "timestamp": { "type": "string", "description": "Transaction timestamp" },
+        "status": { "type": "string", "enum": ["pending", "completed", "processing"], "description": "Status of transaction" },
+        "method": { "type": "string", "description": "Payment method (UPI, Bank, etc.)" },
+        "utr": { "type": "string", "description": "Payment reference number" },
+        "aadhaar": { "type": "string", "description": "Aadhaar number if submitted for withdrawal" }
+      },
+      "required": ["id", "type", "amount", "timestamp", "status"]
+    },
+    "AdminSettings": {
+      "title": "AdminSettings",
+      "description": "Global administration settings including custom QR and UPI ID",
+      "type": "object",
+      "properties": {
+        "customQrUrl": { "type": "string", "description": "Custom payment QR image URL or base64" },
+        "customUpiId": { "type": "string", "description": "Custom UPI ID for KYC payments" },
+        "adminPassword": { "type": "string", "description": "Admin access password" }
+      },
+      "required": ["customUpiId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User accounts and mining state"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Claim and withdrawal transactions"
+    },
+    "/settings/{settingId}": {
+      "schema": "AdminSettings",
+      "description": "System-wide admin configurations"
+    }
+  }
+}

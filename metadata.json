@@ -1,0 +1,8 @@
+{
+  "name": "Remix Tap to Earn",
+  "description": "Interactive earning app featuring tap-to-earn mining, live coins and rupees accrual, wallet withdrawal, and top leaderboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
